@@ -1,19 +1,16 @@
 <?php
 /*!
- * mf(minimal framework) v0.5.5
+ * mf(minimal framework) v0.6.0
  * https://github.com/webgoto/mf
  *
  * Copyright 2016, webgoto.net
  * Released under the MIT license
  */
 
-	//path,urlの設定
-	//$this->slugs_path = $this->theme_path.$this->slugs_dir.'/'.$this->slug;
-	//$this->slugs_url = $this->theme_url.$this->slugs_dir.'/'.$this->slug;
 Class MF{
 	public $sub_dir;
-	public $src_dir = '/theme';
-	public $asset_dir = '/theme';
+	public $src_dir;
+	public $asset_dir;
 
 	public $root_path;
 	public $site_path;
@@ -27,11 +24,17 @@ Class MF{
 	public $route;
 	public $title;
 	public $option;
-	public $slugs = array('404'=>array('title'=>'','url'=>''),'405'=>array('title'=>'','url'=>''));
+	public $slugs = array('404'=>array('title'=>'ページが見つかりません。','url'=>''),'405'=>array('title'=>'送信されたメソッドは許可されていません。','url'=>''));
 
 	private $router;
 
-	public function __construct(){
+	/**
+	 * コンストラクタ
+	 *
+	 * @param string $src_dir
+	 * @param string $asset_dir
+	 */
+	public function __construct($src_dir='/src', $asset_dir='/asset'){
 		//初期設定
 		date_default_timezone_set("Asia/Tokyo");
 		// Microsoft IIS doesn't set REQUEST_URI by default
@@ -42,7 +45,10 @@ Class MF{
 			}
 		}
 
-		$this->router = new Router();
+		$this->src_dir = $src_dir;
+		$this->asset_dir = $asset_dir;
+
+		$this->router = new TreeRoute();
 
 		//pathの設定
 		$backtrace        = debug_backtrace();
@@ -54,7 +60,7 @@ Class MF{
 		$this->sub_dir    = $sub;
 		$this->site_path  = $root.$sub;
 		$this->asset_path = $root.$sub.$this->asset_dir;
-		$this->src_path = $root.$sub.$this->src_dir;
+		$this->src_path   = $root.$sub.$this->src_dir;
 
 		//urlの設定
 		$scheme = isset($_SERVER['HTTPS']) && !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off' ? 'https' : 'http';
@@ -68,10 +74,14 @@ Class MF{
 
 	/**
 	 * サイトのページを設定
+	 *
+	 * @param string $route
+	 * @param array $handler
+	 * @param string|array $method
 	 */
-	public function addRoute($route, $handler){
+	public function addRoute($route, $handler, $method = array('GET', 'POST', 'OPTIONS', 'HEAD', 'PUT', 'DELETE', 'TRACE', 'CONNECT')){
 		$this->slugs[$handler[0]] = array('url'=>$route, 'title'=>$handler[1]);
-		$this->router->addRoute(array('GET', 'POST'), $this->sub_dir.$route, $handler);
+		$this->router->addRoute($method, $this->sub_dir.$route, $handler);
 	}
 
 	/**
@@ -87,11 +97,11 @@ Class MF{
 			switch($result['error']['code']){
 				case 404 :
 					$this->slug  = '404';
-					$this->title = 'ページが見つかりません。';
+					$this->title = $this->slugs['404']['title'];
 					break;
 				case 405 :
 					$this->slug  = '405';
-					$this->title = '送信されたメソッドは許可されていません。';
+					$this->title = $this->slugs['404']['title'];
 					break;
 			}
 		}else{
@@ -102,31 +112,24 @@ Class MF{
 	}
 
 	/**
-	 * タイトルタグ用のテキストを作成
+	 * 現在のスラッグと比較し、一致した場合にtrueまたは$output_textで指定した文字列を返す。
+	 *
+	 * @param string|array $slug
+	 * @param string $output_text
+	 *
+	 * @return bool|string
 	 */
-	public function title($site_name = '', $site_desc = ''){
-		if($this->route==='/'){
-			$text = $site_name.' '.$site_desc;
-		}else{
-			$text = $this->title.' - '.$site_name;
-		}
-		return $text;
-	}
-
-	/**
-	 * 現在のスラッグと比較
-	 */
-	public function match_slug($slug, $output_text = null){
+	public function match_slug($slug, $output_text = ''){
 		foreach((array)$slug as $value){
 			if(mb_strpos($this->slug, $value)!==false){
-				if(is_null($output_text)){
+				if($output_text===''){
 					return true;
 				}else{
 					return $output_text;
 				}
 			}
 		}
-		if(is_null($output_text)){
+		if($output_text===''){
 			return false;
 		}else{
 			return '';
@@ -134,7 +137,12 @@ Class MF{
 	}
 
 	/**
-	 * スラッグ名+オプション値からurlを取得
+	 * スラッグ名とオプション値から登録されてるurlを返す。
+	 *
+	 * @param string $slug
+	 * @param array $option
+	 *
+	 * @return string
 	 */
 	public function slug_url($slug, $option=array()){
 		$url = $this->slugs[$slug]['url'];
@@ -152,7 +160,7 @@ Class MF{
  * Copyright (c) 2015, Vadim Baryshev All rights reserved.
  */
 
-class Router
+class TreeRoute
 {
     const PARAM_REGEXP = '/^{((([^:]+):(.+))|(.+))}$/';
     const SEPARATOR_REGEXP = '/^[\s\/]+|[\s\/]+$/';

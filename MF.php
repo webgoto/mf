@@ -1,6 +1,6 @@
 <?php
-/*!
- * mf(minimal framework) v0.6.0
+/**!
+ * mf(minimal framework) v0.9.0
  * https://github.com/webgoto/mf
  *
  * Copyright 2016, webgoto.net
@@ -8,15 +8,17 @@
  */
 
 Class MF{
-	public $sub_dir;
 	public $src_dir;
 	public $asset_dir;
 
 	public $root_path;
+	public $sub_path;
 	public $site_path;
 	public $asset_path;
 	public $src_path;
 
+	public $root_url;
+	public $sub_url;
 	public $site_url;
 	public $asset_url;
 
@@ -31,12 +33,9 @@ Class MF{
 	/**
 	 * コンストラクタ
 	 *
-	 * @param string $src_dir
-	 * @param string $asset_dir
+	 * @param array $opt_arr src_dir='/src', asset_dir'/asset', root_path, root_url, sub_path, sub_url
 	 */
-	public function __construct($src_dir='/src', $asset_dir='/asset'){
-		//初期設定
-		date_default_timezone_set("Asia/Tokyo");
+	public function __construct($opt_arr=array()){
 		// Microsoft IIS doesn't set REQUEST_URI by default
 		if(!isset($_SERVER['REQUEST_URI'])){
 			$_SERVER['REQUEST_URI'] = substr($_SERVER['PHP_SELF'], 1);
@@ -45,30 +44,31 @@ Class MF{
 			}
 		}
 
-		$this->src_dir = $src_dir;
-		$this->asset_dir = $asset_dir;
+		$this->src_dir = $this->array_get($opt_arr['src_dir'], '/src');
+		$this->asset_dir = $this->array_get($opt_arr['asset_dir'], '/asset');
 
 		$this->router = new TreeRoute();
 
 		//pathの設定
 		$backtrace        = debug_backtrace();
-		$index            = rtrim(str_replace('\\', '/', dirname($backtrace[ count($backtrace)-1 ]['file'])), '/');
-		$root             = rtrim(str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']), '/');
-		$length           = mb_strlen($index)-mb_strlen($root)-mb_strpos($index, $root);
-		$sub              = mb_substr($index, -$length, $length);
-		$this->root_path  = $root;
-		$this->sub_dir    = $sub;
-		$this->site_path  = $root.$sub;
-		$this->asset_path = $root.$sub.$this->asset_dir;
-		$this->src_path   = $root.$sub.$this->src_dir;
+		$index_path       = rtrim(str_replace('\\', '/', dirname($backtrace[count($backtrace)-1]['file'])), '/');
+		$this->root_path  = $this->array_get($opt_arr['root_path'], rtrim(str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']), '/'));
+		if(mb_strpos($index_path, $this->root_path)===false) echo 'MF:ドキュメントルートとインデックスファイルのPATHが一致しないため、root_pathが正しく推測できませんでした。<br>index_pathから[/サブディレクトリ]を除いたPATHをコンストラクタのroot_pathで指定してみて下さい。<br>index_path:'.$index_path.'<br> root_path:&nbsp;&nbsp;'.$this->root_path;
+		$length           = mb_strlen($index_path)-mb_strlen($this->root_path)-mb_strpos($index_path, $this->root_path);
+		$this->sub_path   = $this->array_get($opt_arr['sub_path'], mb_substr($index_path, -$length, $length));
+		$this->site_path  = $this->root_path.$this->sub_path;
+		$this->asset_path = $this->site_path.$this->asset_dir;
+		$this->src_path   = $this->site_path.$this->src_dir;
 
 		//urlの設定
 		$scheme = isset($_SERVER['HTTPS']) && !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off' ? 'https' : 'http';
-		$root_url = $scheme.'://'.$_SERVER['SERVER_NAME'];
+		$this->root_url = $scheme.'://'.$_SERVER['SERVER_NAME'];
 		if(($scheme==='https' && $_SERVER['SERVER_PORT']!=443) || ($scheme==='http' && $_SERVER['SERVER_PORT']!=80)){
-			$root_url .= sprintf(':%s', $_SERVER['SERVER_PORT']);
+			$this->root_url .= sprintf(':%s', $_SERVER['SERVER_PORT']);
 		}
-		$this->site_url = $root_url.$this->sub_dir;
+		$this->root_url = $this->array_get($opt_arr['root_url'], $this->root_url);
+		$this->sub_url =  $this->array_get($opt_arr['sub_url'], mb_substr($index_path, -$length, $length));
+		$this->site_url = $this->root_url.$this->sub_url;
 		$this->asset_url = $this->site_url.$this->asset_dir;
 	}
 
@@ -81,7 +81,7 @@ Class MF{
 	 */
 	public function addRoute($route, $handler, $method = array('GET', 'POST', 'OPTIONS', 'HEAD', 'PUT', 'DELETE', 'TRACE', 'CONNECT')){
 		$this->slugs[$handler[0]] = array('url'=>$route, 'title'=>$handler[1]);
-		$this->router->addRoute($method, $this->sub_dir.$route, $handler);
+		$this->router->addRoute($method, $this->sub_url.$route, $handler);
 	}
 
 	/**
@@ -90,7 +90,7 @@ Class MF{
 	public function dispatch(){
 		$httpMethod = $_SERVER['REQUEST_METHOD'];
 		$uri = rawurldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
-		$cut = mb_strlen($this->sub_dir);
+		$cut = mb_strlen($this->sub_url);
 		$this->route = mb_substr($uri, $cut, mb_strlen($uri)-$cut);
 		$result = $this->router->dispatch($httpMethod, $uri);
 		if(isset($result['error'])){
@@ -144,14 +144,29 @@ Class MF{
 	 *
 	 * @return string
 	 */
-	public function slug_url($slug, $option=array()){
+	public function slug_url($slug = '', $option = array()){
+		if($slug==='') $slug = $this->slug;
 		$url = $this->slugs[$slug]['url'];
 		foreach($option as $key=>$val){
-			preg_replace('/\{.*?'.$key.'.*?\}/g', $val, $url);
+			$url = preg_replace('/\{'.$key.':.*?\}/', $val, $url);
 		}
+		$url = preg_replace('/\{.*?:.*?\}\/?/', '', $url);
 		return $this->site_url.$url;
 	}
 
+
+	/**
+	 * 配列の値などをエラーを出さずに取り出す。
+	 *
+	 * @param mixed $var
+	 * @param mixed $default
+	 *
+	 * @return mixed
+	 */
+	private function array_get(&$var, $default = null){
+		if(isset($var)) return $var;
+		return $default;
+	}
 }
 
 /*

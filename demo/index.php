@@ -1,6 +1,6 @@
 <?php
 require '../MF.php';
-$mf = new MF('/src', '/asset');
+$mf = new MF();
 
 $mf->addRoute('/', array('top', 'Demo Site'));
 $mf->addRoute('/about/', array('about', 'About - Demo Site'));

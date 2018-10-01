@@ -5,7 +5,7 @@ v0.9.0
 
 ## 使い方 How to use.
 
-### ディレクトリ構成例 Directory sample
+### ディレクトリ構成例 Directory
 Sample
 ```
 www/sample
@@ -40,6 +40,10 @@ $mf->dispatch();
 echo $mf->slug;
 ```
 
+### アクセス access
+addRouteで指定したURLにアクセスすると、URLによって違うスラッグ名が表示される。  
+以上でサンプルは終了です。
+
 ### API
 
 ### コンストラクタ Constructor
@@ -60,7 +64,7 @@ sub_url
 
 ### メソッド Method
 
-#### addRoute($route, $handler [, $method]) void
+#### - addRoute($route, $handler [, $method]) void
 サイトのページを追加
 ##### $route string
 urlのルール  
@@ -76,10 +80,10 @@ https://github.com/baryshev/TreeRoute
 対応するメソッド  
 例 'post'、['post', 'delete']
 
-#### dispatch() void
+#### - dispatch() void
 アクセスされたページを特定
 
-#### match_slug($slug [, $output_text]) bool|string
+#### - match_slug($slug [, $output_text]) bool|string
 現在のスラッグと比較し、一致した場合trueか$output_textを、不一致の場合falseか空文字を返す。
 ##### $slug string|array
 調べるスラッグ名  
@@ -88,7 +92,7 @@ https://github.com/baryshev/TreeRoute
 出力するテキスト  
 例 'current'、'active'
 
-#### slug_url($slug [, $option]) string
+#### - slug_url($slug [, $option]) string
 スラッグ名とオプション値から登録されてるurlを返す。
 ##### $slug string
 調べるスラッグ名  

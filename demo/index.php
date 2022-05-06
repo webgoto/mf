@@ -3,8 +3,8 @@ require '../MF.php';
 $mf = new MF();
 
 $mf->addRoute('/', array('top', 'Demo Site'));
-$mf->addRoute('/about/', array('about', 'About - Demo Site'));
-$mf->addRoute('/{name:other1|other2}/', array('other', 'Other - Demo Site'));
+$mf->addRoute('/about/', array('about', 'About'));
+$mf->addRoute('/{name:other1|other2}/', array('other', 'Other'));
 $mf->dispatch();
 
 ?>

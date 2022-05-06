@@ -80,8 +80,8 @@ https://github.com/baryshev/TreeRoute
 対応するメソッド  
 例 'post'、['post', 'delete']
 
-#### - dispatch() void
-アクセスされたページを特定
+#### - dispatch() array
+アクセスされたページを特定し、各プロパティに値を設定する。戻り値は解析結果を返す。
 
 #### - match_slug($slug [, $output_text]) bool|string
 現在のスラッグと比較し、一致した場合trueか$output_textを、不一致の場合falseか空文字を返す。

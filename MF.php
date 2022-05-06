@@ -1,6 +1,6 @@
 <?php
 /**!
- * mf(minimal framework) v0.9.0
+ * mf(minimal framework) v0.9.2
  * https://github.com/webgoto/mf
  *
  * Copyright 2016, webgoto.net
@@ -28,7 +28,7 @@ Class MF{
 	public $option;
 	public $slugs = array('404'=>array('title'=>'ページが見つかりません。','url'=>''),'405'=>array('title'=>'送信されたメソッドは許可されていません。','url'=>''));
 
-	private $router;
+	protected $router;
 
 	/**
 	 * コンストラクタ
@@ -94,21 +94,18 @@ Class MF{
 		$this->route = mb_substr($uri, $cut, mb_strlen($uri)-$cut);
 		$result = $this->router->dispatch($httpMethod, $uri);
 		if(isset($result['error'])){
-			switch($result['error']['code']){
-				case 404 :
-					$this->slug  = '404';
-					$this->title = $this->slugs['404']['title'];
-					break;
-				case 405 :
-					$this->slug  = '405';
-					$this->title = $this->slugs['404']['title'];
-					break;
-			}
+			//404, 405エラーの場合
+			$code = strval($result['error']['code']);
+			$this->slug  = $code;
+			$this->title = isset($this->slugs[$code]['title']) ? $this->slugs[$code]['title'] : $result['error']['message'];
+			$protocol = isset($_SERVER['SERVER_PROTOCOL']) ? $_SERVER['SERVER_PROTOCOL'] : 'HTTP/1.0';
+			header($protocol.' '.$code.' '. $result['error']['message']);
 		}else{
 			$this->slug   = $result['handler'][0];
 			$this->title  = $result['handler'][1];
 			$this->option = $result['params'];
 		}
+		return $result;
 	}
 
 	/**
